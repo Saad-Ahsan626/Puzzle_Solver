@@ -18,17 +18,34 @@ from algorithms import (
 
 TILE_SIZE   = 150
 BOARD_PX    = TILE_SIZE * 3
-BLANK_COLOR = "#E5E7EB"
-FONT_FAMILY = "Segoe UI"
 ANIM_DELAY  = 350
+FONT_FAMILY = "Segoe UI"
 
-BG_MAIN      = "#F9FAFB"
-BG_PANEL     = "#FFFFFF"
-ACCENT_MINT  = "#10B981"
-ACCENT_DARK  = "#047857"
-TEXT_PRIMARY = "#111827"
-TEXT_MUTED   = "#6B7280"
-BORDER_LIGHT = "#E5E7EB"
+# Theme System
+THEMES = {
+    "light": {
+        "bg_main":      "#F9FAFB",
+        "bg_panel":     "#FFFFFF",
+        "accent":       "#10B981",
+        "accent_dark":  "#047857",
+        "text_primary": "#111827",
+        "text_muted":   "#6B7280",
+        "border":       "#E5E7EB",
+        "blank_tile":   "#E5E7EB",
+        "btn_secondary":"#FFFFFF"
+    },
+    "dark": {
+        "bg_main":      "#0F172A",
+        "bg_panel":     "#1E293B",
+        "accent":       "#38BDF8",
+        "accent_dark":  "#0EA5E9",
+        "text_primary": "#F8FAFC",
+        "text_muted":   "#94A3B8",
+        "border":       "#334155",
+        "blank_tile":   "#334155",
+        "btn_secondary":"#1E293B"
+    }
+}
 
 ALGO_MAP = {
     "BFS  (Breadth-First Search)":           bfs,
@@ -40,7 +57,7 @@ ALGO_MAP = {
 ALGO_KEYS = list(ALGO_MAP.keys())
 
 
-def slice_image(image_path: str, tile_size: int = TILE_SIZE) -> Dict[int, ImageTk.PhotoImage]:
+def slice_image(image_path: str, blank_color: str, tile_size: int = TILE_SIZE) -> Dict[int, Image.Image]:
     board_size = tile_size * 3
     img = Image.open(image_path).convert("RGB")
 
@@ -51,10 +68,10 @@ def slice_image(image_path: str, tile_size: int = TILE_SIZE) -> Dict[int, ImageT
     img    = img.crop((left, top, left + min_dim, top + min_dim))
     img    = img.resize((board_size, board_size), Image.LANCZOS)
 
-    tiles: Dict[int, ImageTk.PhotoImage] = {}
+    tiles: Dict[int, Image.Image] = {}
 
-    blank = Image.new("RGB", (tile_size, tile_size), BLANK_COLOR)
-    tiles[0] = ImageTk.PhotoImage(blank)
+    blank = Image.new("RGB", (tile_size, tile_size), blank_color)
+    tiles[0] = blank
 
     tile_num = 1
     for row in range(3):
@@ -63,20 +80,21 @@ def slice_image(image_path: str, tile_size: int = TILE_SIZE) -> Dict[int, ImageT
                 break
             x0, y0 = col * tile_size, row * tile_size
             piece = img.crop((x0, y0, x0 + tile_size, y0 + tile_size))
-            tiles[tile_num] = ImageTk.PhotoImage(piece)
+            tiles[tile_num] = piece
             tile_num += 1
 
     return tiles
 
 
-def make_placeholder_tiles(tile_size: int = TILE_SIZE) -> Dict[int, ImageTk.PhotoImage]:
+def make_placeholder_tiles(blank_color: str, tile_size: int = TILE_SIZE) -> Dict[int, Image.Image]:
+    # Nordic soft palette for numbered tiles
     colours = [
         "#D1FAE5", "#A7F3D0", "#6EE7B7", "#34D399",
         "#10B981", "#059669", "#047857", "#065F46", "#064E3B",
     ]
     tiles: Dict[int, ImageTk.PhotoImage] = {}
     for i in range(9):
-        colour = BLANK_COLOR if i == 0 else colours[i]
+        colour = blank_color if i == 0 else colours[i]
         img = Image.new("RGB", (tile_size, tile_size), colour)
         if i != 0:
             draw = ImageDraw.Draw(img)
@@ -93,7 +111,7 @@ def make_placeholder_tiles(tile_size: int = TILE_SIZE) -> Dict[int, ImageTk.Phot
                 fill="#1F2937",
                 font=font
             )
-        tiles[i] = ImageTk.PhotoImage(img)
+        tiles[i] = img
     return tiles
 
 
@@ -101,37 +119,49 @@ class PuzzleGUI:
 
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Puzzle Solver")
+        self.root.title("8-Puzzle Image Solver")
         self.root.resizable(False, False)
-        self.root.configure(bg=BG_MAIN)
+        
+        self.theme_mode: str = "light"
+        self.theme = THEMES[self.theme_mode]
+        self.root.configure(bg=self.theme["bg_main"])
 
         self.current_state: PuzzleState = PuzzleState(
             board=copy.deepcopy(GOAL_STATE)
         )
-        self.tile_images: Dict[int, ImageTk.PhotoImage] = make_placeholder_tiles()
+        self.raw_tiles: Dict[int, Image.Image] = make_placeholder_tiles(self.theme["blank_tile"])
+        self.tile_images: Dict[int, ImageTk.PhotoImage] = self._convert_tiles(self.raw_tiles)
         self.solution_path: List[PuzzleState] = []
         self.anim_index: int = 0
         self.anim_job: Optional[str] = None
         self._solving: bool = False
+        self.theme_mode: str = "light"
+        self.theme = THEMES[self.theme_mode]
 
         self._build_ui()
         self._draw_board(self.current_state)
 
     def _build_ui(self) -> None:
-        title_frame = tk.Frame(self.root, bg=BG_PANEL, pady=12)
+        self.root.configure(bg=self.theme["bg_main"])
+        
+        # Clean existing widgets for theme refresh
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        title_frame = tk.Frame(self.root, bg=self.theme["bg_panel"], pady=12)
         title_frame.pack(fill="x")
 
-        tk.Frame(self.root, bg=BORDER_LIGHT, height=1).pack(fill="x")
+        tk.Frame(self.root, bg=self.theme["border"], height=1).pack(fill="x")
 
         tk.Label(
             title_frame,
             text="8-Puzzle Image Solver",
             font=(FONT_FAMILY, 24, "bold"),
-            fg=ACCENT_DARK,
-            bg=BG_PANEL,
+            fg=self.theme["accent_dark"],
+            bg=self.theme["bg_panel"],
         ).pack()
 
-        mid_frame = tk.Frame(self.root, bg=BG_MAIN)
+        mid_frame = tk.Frame(self.root, bg=self.theme["bg_main"])
         mid_frame.pack(padx=20, pady=20)
 
         self._build_canvas(mid_frame)
@@ -141,18 +171,18 @@ class PuzzleGUI:
 
     def _build_canvas(self, parent: tk.Frame) -> None:
         canvas_frame = tk.Frame(
-            parent, bg=BG_PANEL, relief="flat", bd=0
+            parent, bg=self.theme["bg_panel"], relief="flat", bd=0
         )
         canvas_frame.pack(side="left", padx=(0, 20))
 
-        board_container = tk.Frame(canvas_frame, bg=BORDER_LIGHT, padx=2, pady=2)
+        board_container = tk.Frame(canvas_frame, bg=self.theme["border"], padx=2, pady=2)
         board_container.pack()
 
         self.canvas = tk.Canvas(
             board_container,
             width=BOARD_PX,
             height=BOARD_PX,
-            bg=BG_PANEL,
+            bg=self.theme["bg_panel"],
             highlightthickness=0,
         )
         self.canvas.pack()
@@ -161,22 +191,21 @@ class PuzzleGUI:
             canvas_frame,
             text="Step: — / —",
             font=(FONT_FAMILY, 11),
-            fg=TEXT_MUTED,
-            bg=BG_PANEL,
+            fg=self.theme["text_muted"],
+            bg=self.theme["bg_panel"],
         )
         self.step_label.pack(pady=10)
 
     def _build_controls(self, parent: tk.Frame) -> None:
-        ctrl = tk.Frame(parent, bg=BG_MAIN, width=300)
+        ctrl = tk.Frame(parent, bg=self.theme["bg_main"], width=300)
         ctrl.pack(side="left", fill="y")
-        ctrl.pack_propagate(False)
 
         self._section_label(ctrl, "📷  Image")
         tk.Button(
             ctrl,
             text="Upload Image",
             command=self._upload_image,
-            **self._btn_style(BG_PANEL, fg=TEXT_PRIMARY, border=True),
+            **self._btn_style(self.theme["btn_secondary"], fg=self.theme["text_primary"], border=True),
         ).pack(fill="x", padx=10, pady=4)
 
         self._section_label(ctrl, "🤖  Algorithm")
@@ -190,19 +219,41 @@ class PuzzleGUI:
         )
         algo_menu.pack(padx=10, pady=4)
 
+        tk.Button(
+            ctrl,
+            text="⚔  Algorithm Battle",
+            command=self._open_battle_mode,
+            **self._btn_style(self.theme["accent"], border=True),
+        ).pack(fill="x", padx=10, pady=8)
+
+        tk.Button(
+            ctrl,
+            text="🌓 Toggle Dark/Light Mode",
+            command=self._toggle_theme,
+            **self._btn_style(self.theme["btn_secondary"], fg=self.theme["text_primary"], border=True),
+        ).pack(fill="x", padx=10, pady=4)
+
+        self._section_label(ctrl, "📊  Analysis")
+        tk.Button(
+            ctrl,
+            text="Compare All Algorithms",
+            command=self._compare_all,
+            **self._btn_style(self.theme["btn_secondary"], fg=self.theme["accent_dark"], border=True),
+        ).pack(fill="x", padx=10, pady=4)
+
         self._section_label(ctrl, "🎲  Board")
         tk.Button(
             ctrl,
             text="Shuffle Board",
             command=self._shuffle_board,
-            **self._btn_style(ACCENT_MINT),
+            **self._btn_style(self.theme["accent"]),
         ).pack(fill="x", padx=10, pady=4)
 
         tk.Button(
             ctrl,
             text="Reset to Goal",
             command=self._reset_board,
-            **self._btn_style(BG_PANEL, fg=TEXT_PRIMARY, border=True),
+            **self._btn_style(self.theme["btn_secondary"], fg=self.theme["text_primary"], border=True),
         ).pack(fill="x", padx=10, pady=4)
 
         self._section_label(ctrl, "🔍  Solve")
@@ -210,14 +261,14 @@ class PuzzleGUI:
             ctrl,
             text="▶  Solve (Animate)",
             command=self._solve_and_animate,
-            **self._btn_style(ACCENT_DARK),
+            **self._btn_style(self.theme["accent_dark"]),
         ).pack(fill="x", padx=10, pady=4)
 
         tk.Button(
             ctrl,
             text="⏭  Show Final Solution",
             command=self._show_final,
-            **self._btn_style(BG_PANEL, fg=TEXT_PRIMARY, border=True),
+            **self._btn_style(self.theme["btn_secondary"], fg=self.theme["text_primary"], border=True),
         ).pack(fill="x", padx=10, pady=4)
 
         tk.Button(
@@ -227,46 +278,40 @@ class PuzzleGUI:
             **self._btn_style("#EF4444"),
         ).pack(fill="x", padx=10, pady=4)
 
-        self._section_label(ctrl, "📊  Analysis")
-        tk.Button(
-            ctrl,
-            text="Compare All Algorithms",
-            command=self._compare_all,
-            **self._btn_style(BG_PANEL, fg=ACCENT_DARK, border=True),
-        ).pack(fill="x", padx=10, pady=4)
+        # Analysis and Settings moved up
 
         self.status_var = tk.StringVar(value="Ready.")
         tk.Label(
             ctrl,
             textvariable=self.status_var,
             font=(FONT_FAMILY, 10, "italic"),
-            fg=TEXT_MUTED,
-            bg=BG_MAIN,
+            fg=self.theme["text_muted"],
+            bg=self.theme["bg_main"],
             wraplength=280,
         ).pack(padx=10, pady=15)
 
     def _build_table_panel(self) -> None:
-        frame = tk.Frame(self.root, bg=BG_PANEL, relief="flat")
+        frame = tk.Frame(self.root, bg=self.theme["bg_panel"], relief="flat")
         frame.pack(fill="x", padx=20, pady=(0, 20))
 
         tk.Label(
             frame,
             text="ALGORITHM COMPARISON",
             font=(FONT_FAMILY, 10, "bold"),
-            fg=TEXT_MUTED,
-            bg=BG_PANEL,
+            fg=self.theme["text_muted"],
+            bg=self.theme["bg_panel"],
         ).pack(anchor="w", padx=8, pady=8)
 
-        text_container = tk.Frame(frame, bg=BORDER_LIGHT, padx=1, pady=1)
+        text_container = tk.Frame(frame, bg=self.theme["border"], padx=1, pady=1)
         text_container.pack(fill="x")
 
         self.table_text = tk.Text(
             text_container,
             height=8,
             font=("Consolas", 10),
-            bg=BG_MAIN,
-            fg=TEXT_PRIMARY,
-            insertbackground=TEXT_PRIMARY,
+            bg=self.theme["bg_main"],
+            fg=self.theme["text_primary"],
+            insertbackground=self.theme["text_primary"],
             relief="flat",
             wrap="none",
             padx=10,
@@ -282,22 +327,20 @@ class PuzzleGUI:
             f"{'Algorithm':<12} {'Nodes Explored':>16} {'Path Cost':>12} {'Time (s)':>12}"
         )
 
-    @staticmethod
-    def _section_label(parent: tk.Frame, text: str) -> None:
+    def _section_label(self, parent: tk.Frame, text: str) -> None:
         tk.Label(
             parent,
             text=text.upper(),
             font=(FONT_FAMILY, 9, "bold"),
-            fg=TEXT_MUTED,
-            bg=BG_MAIN,
+            fg=self.theme["text_muted"],
+            bg=self.theme["bg_main"],
         ).pack(anchor="w", padx=10, pady=(15, 2))
 
-    @staticmethod
-    def _btn_style(bg: str, fg: str = "white", border: bool = False) -> dict:
+    def _btn_style(self, bg: str, fg: str = "white", border: bool = False) -> dict:
         style = {
             "bg":              bg,
             "fg":              fg,
-            "activebackground": bg if not border else "#F3F4F6",
+            "activebackground": bg if not border else self.theme["bg_main"],
             "activeforeground":  fg,
             "font":            (FONT_FAMILY, 10, "bold"),
             "relief":          "flat",
@@ -305,11 +348,18 @@ class PuzzleGUI:
             "pady":            8,
         }
         if border:
-            style["highlightbackground"] = BORDER_LIGHT
+            style["highlightbackground"] = self.theme["border"]
             style["highlightthickness"] = 1
             style["bd"] = 1
             style["relief"] = "solid"
         return style
+
+    def _convert_tiles(self, raw_tiles: Dict[int, Image.Image], size: int = TILE_SIZE) -> Dict[int, ImageTk.PhotoImage]:
+        converted = {}
+        for num, img in raw_tiles.items():
+            resized = img.resize((size, size), Image.LANCZOS)
+            converted[num] = ImageTk.PhotoImage(resized)
+        return converted
 
     def _draw_board(self, state: PuzzleState) -> None:
         self.canvas.delete("all")
@@ -325,11 +375,11 @@ class PuzzleGUI:
         for i in range(1, 3):
             self.canvas.create_line(
                 i * TILE_SIZE, 0, i * TILE_SIZE, BOARD_PX,
-                fill=BORDER_LIGHT, width=1
+                fill=self.theme["border"], width=1
             )
             self.canvas.create_line(
                 0, i * TILE_SIZE, BOARD_PX, i * TILE_SIZE,
-                fill=BORDER_LIGHT, width=1
+                fill=self.theme["border"], width=1
             )
 
     def _upload_image(self) -> None:
@@ -343,7 +393,8 @@ class PuzzleGUI:
         if not path:
             return
         try:
-            self.tile_images = slice_image(path)
+            self.raw_tiles = slice_image(path, self.theme["blank_tile"])
+            self.tile_images = self._convert_tiles(self.raw_tiles)
             self._draw_board(self.current_state)
             self.status_var.set(f"Image loaded: {os.path.basename(path)}")
         except Exception as exc:
@@ -468,6 +519,16 @@ class PuzzleGUI:
         self.table_text.delete("1.0", tk.END)
         self.table_text.insert(tk.END, text)
         self.table_text.config(state="disabled")
+
+    def _toggle_theme(self) -> None:
+        self.theme_mode = "dark" if self.theme_mode == "light" else "light"
+        self.theme = THEMES[self.theme_mode]
+        self._build_ui()
+        self._draw_board(self.current_state)
+
+    def _open_battle_mode(self) -> None:
+        from battle_mode import BattleUI
+        BattleUI(self.root, self.current_state, self.raw_tiles, self.theme, self.theme_mode)
 
     def _append_table(self, row: str) -> None:
         self.table_text.config(state="normal")
