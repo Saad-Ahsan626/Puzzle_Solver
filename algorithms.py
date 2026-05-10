@@ -1,8 +1,12 @@
 from __future__ import annotations
 import heapq
 import time
+import sys
 from collections import deque
 from typing import List, Optional, Tuple
+
+# Increase recursion limit for deep IDS searches
+sys.setrecursionlimit(2000)
 
 from puzzle_engine import PuzzleState, GOAL_STATE
 
