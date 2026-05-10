@@ -18,9 +18,17 @@ from algorithms import (
 
 TILE_SIZE   = 150
 BOARD_PX    = TILE_SIZE * 3
-BLANK_COLOR = "#000000"
-FONT_FAMILY = "Helvetica"
+BLANK_COLOR = "#E5E7EB"
+FONT_FAMILY = "Segoe UI"
 ANIM_DELAY  = 350
+
+BG_MAIN      = "#F9FAFB"
+BG_PANEL     = "#FFFFFF"
+ACCENT_MINT  = "#10B981"
+ACCENT_DARK  = "#047857"
+TEXT_PRIMARY = "#111827"
+TEXT_MUTED   = "#6B7280"
+BORDER_LIGHT = "#E5E7EB"
 
 ALGO_MAP = {
     "BFS  (Breadth-First Search)":           bfs,
@@ -63,8 +71,8 @@ def slice_image(image_path: str, tile_size: int = TILE_SIZE) -> Dict[int, ImageT
 
 def make_placeholder_tiles(tile_size: int = TILE_SIZE) -> Dict[int, ImageTk.PhotoImage]:
     colours = [
-        "#1a1a2e", "#16213e", "#0f3460", "#533483",
-        "#e94560", "#f5a623", "#7ed321", "#4a90e2", "#9b59b6",
+        "#D1FAE5", "#A7F3D0", "#6EE7B7", "#34D399",
+        "#10B981", "#059669", "#047857", "#065F46", "#064E3B",
     ]
     tiles: Dict[int, ImageTk.PhotoImage] = {}
     for i in range(9):
@@ -73,12 +81,17 @@ def make_placeholder_tiles(tile_size: int = TILE_SIZE) -> Dict[int, ImageTk.Phot
         if i != 0:
             draw = ImageDraw.Draw(img)
             text  = str(i)
-            bbox = draw.textbbox((0, 0), text, font=None)
+            try:
+                font = ImageFont.truetype("segoeuib.ttf", 40)
+            except:
+                font = None
+            bbox = draw.textbbox((0, 0), text, font=font)
             tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
             draw.text(
                 ((tile_size - tw) // 2, (tile_size - th) // 2),
                 text,
-                fill="white",
+                fill="#1F2937",
+                font=font
             )
         tiles[i] = ImageTk.PhotoImage(img)
     return tiles
@@ -88,9 +101,9 @@ class PuzzleGUI:
 
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("8-Puzzle Image Solver — CSC-202L AI Lab")
+        self.root.title("Puzzle Solver")
         self.root.resizable(False, False)
-        self.root.configure(bg="#1a1a2e")
+        self.root.configure(bg=BG_MAIN)
 
         self.current_state: PuzzleState = PuzzleState(
             board=copy.deepcopy(GOAL_STATE)
@@ -105,25 +118,21 @@ class PuzzleGUI:
         self._draw_board(self.current_state)
 
     def _build_ui(self) -> None:
-        title_frame = tk.Frame(self.root, bg="#0f3460", pady=8)
+        title_frame = tk.Frame(self.root, bg=BG_PANEL, pady=12)
         title_frame.pack(fill="x")
+
+        tk.Frame(self.root, bg=BORDER_LIGHT, height=1).pack(fill="x")
+
         tk.Label(
             title_frame,
-            text="🧩  8-Puzzle Image Solver",
-            font=(FONT_FAMILY, 20, "bold"),
-            fg="#f5a623",
-            bg="#0f3460",
-        ).pack()
-        tk.Label(
-            title_frame,
-            text="CSC-202L — Artificial Intelligence Lab  |  UET Lahore",
-            font=(FONT_FAMILY, 10),
-            fg="#a0a0c0",
-            bg="#0f3460",
+            text="8-Puzzle Image Solver",
+            font=(FONT_FAMILY, 24, "bold"),
+            fg=ACCENT_DARK,
+            bg=BG_PANEL,
         ).pack()
 
-        mid_frame = tk.Frame(self.root, bg="#1a1a2e")
-        mid_frame.pack(padx=10, pady=10)
+        mid_frame = tk.Frame(self.root, bg=BG_MAIN)
+        mid_frame.pack(padx=20, pady=20)
 
         self._build_canvas(mid_frame)
         self._build_controls(mid_frame)
@@ -132,15 +141,18 @@ class PuzzleGUI:
 
     def _build_canvas(self, parent: tk.Frame) -> None:
         canvas_frame = tk.Frame(
-            parent, bg="#16213e", relief="ridge", bd=3
+            parent, bg=BG_PANEL, relief="flat", bd=0
         )
-        canvas_frame.pack(side="left", padx=(0, 10))
+        canvas_frame.pack(side="left", padx=(0, 20))
+
+        board_container = tk.Frame(canvas_frame, bg=BORDER_LIGHT, padx=2, pady=2)
+        board_container.pack()
 
         self.canvas = tk.Canvas(
-            canvas_frame,
+            board_container,
             width=BOARD_PX,
             height=BOARD_PX,
-            bg="#16213e",
+            bg=BG_PANEL,
             highlightthickness=0,
         )
         self.canvas.pack()
@@ -149,13 +161,13 @@ class PuzzleGUI:
             canvas_frame,
             text="Step: — / —",
             font=(FONT_FAMILY, 11),
-            fg="#a0a0c0",
-            bg="#16213e",
+            fg=TEXT_MUTED,
+            bg=BG_PANEL,
         )
-        self.step_label.pack(pady=4)
+        self.step_label.pack(pady=10)
 
     def _build_controls(self, parent: tk.Frame) -> None:
-        ctrl = tk.Frame(parent, bg="#1a1a2e", width=280)
+        ctrl = tk.Frame(parent, bg=BG_MAIN, width=300)
         ctrl.pack(side="left", fill="y")
         ctrl.pack_propagate(False)
 
@@ -164,7 +176,7 @@ class PuzzleGUI:
             ctrl,
             text="Upload Image",
             command=self._upload_image,
-            **self._btn_style("#4a90e2"),
+            **self._btn_style(BG_PANEL, fg=TEXT_PRIMARY, border=True),
         ).pack(fill="x", padx=10, pady=4)
 
         self._section_label(ctrl, "🤖  Algorithm")
@@ -183,14 +195,14 @@ class PuzzleGUI:
             ctrl,
             text="Shuffle Board",
             command=self._shuffle_board,
-            **self._btn_style("#f5a623"),
+            **self._btn_style(ACCENT_MINT),
         ).pack(fill="x", padx=10, pady=4)
 
         tk.Button(
             ctrl,
             text="Reset to Goal",
             command=self._reset_board,
-            **self._btn_style("#7ed321"),
+            **self._btn_style(BG_PANEL, fg=TEXT_PRIMARY, border=True),
         ).pack(fill="x", padx=10, pady=4)
 
         self._section_label(ctrl, "🔍  Solve")
@@ -198,21 +210,21 @@ class PuzzleGUI:
             ctrl,
             text="▶  Solve (Animate)",
             command=self._solve_and_animate,
-            **self._btn_style("#e94560"),
+            **self._btn_style(ACCENT_DARK),
         ).pack(fill="x", padx=10, pady=4)
 
         tk.Button(
             ctrl,
             text="⏭  Show Final Solution",
             command=self._show_final,
-            **self._btn_style("#9b59b6"),
+            **self._btn_style(BG_PANEL, fg=TEXT_PRIMARY, border=True),
         ).pack(fill="x", padx=10, pady=4)
 
         tk.Button(
             ctrl,
             text="⏹  Stop Animation",
             command=self._stop_animation,
-            **self._btn_style("#533483"),
+            **self._btn_style("#EF4444"),
         ).pack(fill="x", padx=10, pady=4)
 
         self._section_label(ctrl, "📊  Analysis")
@@ -220,7 +232,7 @@ class PuzzleGUI:
             ctrl,
             text="Compare All Algorithms",
             command=self._compare_all,
-            **self._btn_style("#16213e", fg="#f5a623"),
+            **self._btn_style(BG_PANEL, fg=ACCENT_DARK, border=True),
         ).pack(fill="x", padx=10, pady=4)
 
         self.status_var = tk.StringVar(value="Ready.")
@@ -228,40 +240,45 @@ class PuzzleGUI:
             ctrl,
             textvariable=self.status_var,
             font=(FONT_FAMILY, 10, "italic"),
-            fg="#a0a0c0",
-            bg="#1a1a2e",
-            wraplength=260,
-        ).pack(padx=10, pady=10)
+            fg=TEXT_MUTED,
+            bg=BG_MAIN,
+            wraplength=280,
+        ).pack(padx=10, pady=15)
 
     def _build_table_panel(self) -> None:
-        frame = tk.Frame(self.root, bg="#0f3460", relief="ridge", bd=2)
-        frame.pack(fill="x", padx=10, pady=(0, 10))
+        frame = tk.Frame(self.root, bg=BG_PANEL, relief="flat")
+        frame.pack(fill="x", padx=20, pady=(0, 20))
 
         tk.Label(
             frame,
-            text="Algorithm Comparison Table",
-            font=(FONT_FAMILY, 12, "bold"),
-            fg="#f5a623",
-            bg="#0f3460",
-        ).pack(anchor="w", padx=8, pady=4)
+            text="ALGORITHM COMPARISON",
+            font=(FONT_FAMILY, 10, "bold"),
+            fg=TEXT_MUTED,
+            bg=BG_PANEL,
+        ).pack(anchor="w", padx=8, pady=8)
+
+        text_container = tk.Frame(frame, bg=BORDER_LIGHT, padx=1, pady=1)
+        text_container.pack(fill="x")
 
         self.table_text = tk.Text(
-            frame,
+            text_container,
             height=8,
-            font=("Courier", 11),
-            bg="#16213e",
-            fg="#c0c0e0",
-            insertbackground="white",
+            font=("Consolas", 10),
+            bg=BG_MAIN,
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
             relief="flat",
             wrap="none",
+            padx=10,
+            pady=10,
         )
         scrollbar = tk.Scrollbar(frame, command=self.table_text.yview)
         self.table_text.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side="right", fill="y")
-        self.table_text.pack(fill="x", padx=8, pady=(0, 8))
+        self.table_text.pack(fill="x")
 
         self._write_table(
-            "Run an algorithm or click 'Compare All Algorithms' to populate this table.\n\n"
+            "Run an algorithm to compare performance stats.\n\n"
             f"{'Algorithm':<12} {'Nodes Explored':>16} {'Path Cost':>12} {'Time (s)':>12}"
         )
 
@@ -269,24 +286,30 @@ class PuzzleGUI:
     def _section_label(parent: tk.Frame, text: str) -> None:
         tk.Label(
             parent,
-            text=text,
-            font=(FONT_FAMILY, 11, "bold"),
-            fg="#f5a623",
-            bg="#1a1a2e",
-        ).pack(anchor="w", padx=10, pady=(10, 0))
+            text=text.upper(),
+            font=(FONT_FAMILY, 9, "bold"),
+            fg=TEXT_MUTED,
+            bg=BG_MAIN,
+        ).pack(anchor="w", padx=10, pady=(15, 2))
 
     @staticmethod
-    def _btn_style(bg: str, fg: str = "white") -> dict:
-        return {
+    def _btn_style(bg: str, fg: str = "white", border: bool = False) -> dict:
+        style = {
             "bg":              bg,
             "fg":              fg,
-            "activebackground": bg,
+            "activebackground": bg if not border else "#F3F4F6",
             "activeforeground":  fg,
-            "font":            (FONT_FAMILY, 11, "bold"),
+            "font":            (FONT_FAMILY, 10, "bold"),
             "relief":          "flat",
             "cursor":          "hand2",
-            "pady":            6,
+            "pady":            8,
         }
+        if border:
+            style["highlightbackground"] = BORDER_LIGHT
+            style["highlightthickness"] = 1
+            style["bd"] = 1
+            style["relief"] = "solid"
+        return style
 
     def _draw_board(self, state: PuzzleState) -> None:
         self.canvas.delete("all")
@@ -302,11 +325,11 @@ class PuzzleGUI:
         for i in range(1, 3):
             self.canvas.create_line(
                 i * TILE_SIZE, 0, i * TILE_SIZE, BOARD_PX,
-                fill="#f5a623", width=2
+                fill=BORDER_LIGHT, width=1
             )
             self.canvas.create_line(
                 0, i * TILE_SIZE, BOARD_PX, i * TILE_SIZE,
-                fill="#f5a623", width=2
+                fill=BORDER_LIGHT, width=1
             )
 
     def _upload_image(self) -> None:
