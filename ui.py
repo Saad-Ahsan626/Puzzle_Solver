@@ -21,7 +21,7 @@ BOARD_PX    = TILE_SIZE * 3
 ANIM_DELAY  = 350
 FONT_FAMILY = "Segoe UI"
 
-# Theme System
+
 THEMES = {
     "light": {
         "bg_main":      "#F9FAFB",
@@ -87,7 +87,6 @@ def slice_image(image_path: str, blank_color: str, tile_size: int = TILE_SIZE) -
 
 
 def make_placeholder_tiles(blank_color: str, tile_size: int = TILE_SIZE) -> Dict[int, Image.Image]:
-    # Nordic soft palette for numbered tiles
     colours = [
         "#D1FAE5", "#A7F3D0", "#6EE7B7", "#34D399",
         "#10B981", "#059669", "#047857", "#065F46", "#064E3B",
@@ -144,7 +143,6 @@ class PuzzleGUI:
     def _build_ui(self) -> None:
         self.root.configure(bg=self.theme["bg_main"])
         
-        # Clean existing widgets for theme refresh
         for widget in self.root.winfo_children():
             widget.destroy()
 
@@ -277,8 +275,6 @@ class PuzzleGUI:
             command=self._stop_animation,
             **self._btn_style("#EF4444"),
         ).pack(fill="x", padx=10, pady=4)
-
-        # Analysis and Settings moved up
 
         self.status_var = tk.StringVar(value="Ready.")
         tk.Label(
