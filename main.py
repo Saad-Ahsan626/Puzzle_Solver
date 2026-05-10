@@ -14,7 +14,7 @@ def main() -> None:
         except Exception:
             pass
 
-    root.minsize(820, 620)
+    root.minsize(820, 850)
 
     app = PuzzleGUI(root)
     root.mainloop()
